@@ -112,7 +112,7 @@ class ClusterStateUpdater(threading.Thread):
             available_resources[name] = {
                 'cpu': available_cpu,
                 'memory': available_memory,
-                'gpu': available_gpu
+                'nvidia.com/gpu': available_gpu
             }
         return available_resources
 
@@ -143,7 +143,7 @@ class ChakraScheduler:
         self.kubecoreapi = client.CoreV1Api()
         self.scheduler_name = constants.SCHEDULER_NAME
         logger.info('Scheduler Pre-init done.')
-        self.cluster_state = None # Dictionary containing the current state of the cluster. Structure is {node_name: {cpu: float, mem: float, gpu: float}}
+        self.cluster_state = None # Dictionary containing the current state of the cluster. Structure is {node_name: {cpu: float, mem: float, nvidia.com/gpu: float}}
 
         # Run a thread to periodically fetch current state of the cluster and update the cluster state.
         self.cluster_state_updater = ClusterStateUpdater(self, self.kubecoreapi, self.namespace)

@@ -30,6 +30,20 @@ spec:
 
 
 ## Developer Notes
+### Setting up your debug cluster
+```console
+cd tests
+
+# Create a 3 node kind cluster
+kind create cluster --config kind-cluster.yaml
+
+# Add fake GPU resources to these nodes:
+python add_gpus_kind.py
+
+# Now you can experimeent with this cluster by submitting nginx pods with schedulerName set to chakra. This yaml also uses the fake GPUs.
+kubectl apply -f nginx.yaml
+```
+
 ### Running Chakra outside of Kubernetes
 You can also run Chakra outside of Kubernetes using `--kubeconfig` flag to point to a kubeconfig file. This is useful for development and debugging.
 ```console
@@ -42,3 +56,6 @@ python3 -m chakra.main --policy binpack --policy-args '{"binpacking_resource": "
 
 ## Adding your own Policy
 Take a look at chakra/policies.py. You'll need to inherit from `BaseClass` and implement the `get_allocation` method.
+
+## Known issues
+* When the cluster is full and a resource frees up, chakra does not reschedule pending pods onto the freed up resources. This is because the watch doesn't get triggered. This is to be fixed by making the loop not wait on watch and instead also look at pending pods. 

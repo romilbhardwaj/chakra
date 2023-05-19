@@ -18,7 +18,7 @@ spec:
       containers:
       - name: chakra
         image: us-docker.pkg.dev/romil-sky-exp/chakra/chakra:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         command:
           - /bin/bash
           - -c

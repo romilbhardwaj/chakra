@@ -68,10 +68,8 @@ class BestfitBinpackPolicy(BasePolicy):
 
         # Initially, use the binpacking_resource defined for the class
         binpacking_resource = self.binpacking_resource
-
         # Get the pod resource requirement
-        if pod.spec.containers[0].resources and pod.spec.containers[
-            0].resources.requests:
+        if pod.spec.containers[0].resources and pod.spec.containers[0].resources.requests:
             pod_resource_req = pod.spec.containers[0].resources.requests.get(binpacking_resource)
 
         # Fall back to CPU if the specified binpacking resource is not requested by the pod
@@ -90,11 +88,13 @@ class BestfitBinpackPolicy(BasePolicy):
         best_fit_node = None
         best_fit_node_remaining = None
         for node, resources in cluster_state.items():
-            remaining_resource = resources.get(binpacking_resource) - pod_resource_req
-            print(remaining_resource)
-            if remaining_resource >= 0 and (best_fit_node is None or remaining_resource < best_fit_node_remaining):
-                best_fit_node = node
-                best_fit_node_remaining = remaining_resource
+            print(list(pod.spec.containers[0].resources.requests.keys()))
+            if all(float(resources.get(resource, 0)) >= float(pod.spec.containers[0].resources.requests.get(resource, 0))
+                   for resource in pod.spec.containers[0].resources.requests.keys()):
+                remaining_resource = resources.get(binpacking_resource) - pod_resource_req
+                if remaining_resource >= 0 and (best_fit_node is None or remaining_resource < best_fit_node_remaining):
+                    best_fit_node = node
+                    best_fit_node_remaining = remaining_resource
 
         if best_fit_node is None:
             raise Exception('No node has enough resources to fit the pod')
