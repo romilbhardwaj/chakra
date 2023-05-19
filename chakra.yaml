@@ -1,0 +1,26 @@
+# Chakra scheduler
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chakra-scheduler
+  labels:
+    app: chakra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chakra
+  template:
+    metadata:
+      labels:
+        app: chakra
+    spec:
+      containers:
+      - name: chakra
+        image: us-docker.pkg.dev/romil-sky-exp/chakra/chakra:latest
+        imagePullPolicy: IfNotPresent
+        command:
+          - /bin/bash
+          - -c
+          - >
+            python -m chakra.main --policy binpack --policy-args '{"binpacking_resource": "cpu"}'

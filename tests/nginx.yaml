@@ -1,0 +1,31 @@
+# A simple nginx kube deployment
+# kubectl apply -f nginx.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment3
+  labels:
+    app: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      schedulerName: chakra # <--- This is critical! This is how the pod is assigned to Chakra for scheduling.
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 1
+            nvidia.com/gpu: 1
+          requests:
+            cpu: 1
+            nvidia.com/gpu: 1

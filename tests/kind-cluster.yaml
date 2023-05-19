@@ -1,0 +1,8 @@
+# A kind two node cluster YAML for testing
+# kind create cluster --config kind-cluster.yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+- role: worker
+- role: worker
