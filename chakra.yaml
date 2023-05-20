@@ -24,4 +24,4 @@ spec:
           - /bin/bash
           - -c
           - >
-            python -m chakra.main --policy binpack --policy-args '{"binpacking_resource": "cpu"}'
+            python -m chakra.main --policy binpack --policy-args '{"binpacking_resource": "nvidia.com/gpu"}'
