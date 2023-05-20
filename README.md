@@ -52,6 +52,7 @@ cd tests
 kind create cluster --config kind-cluster.yaml
 
 # Add fake GPU resources to these nodes:
+# Before running this script, run `kubectl proxy` in a separate terminal.
 python add_gpus_kind.py
 
 # Now you can experimeent with this cluster by submitting nginx pods with schedulerName set to chakra. This yaml also uses the fake GPUs.
