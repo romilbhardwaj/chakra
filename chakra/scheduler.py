@@ -40,12 +40,16 @@ class ClusterStateUpdater(threading.Thread):
 
     def run(self):
         while True:
-            cluster_state = self.get_cluster_state()
-            self.chakra_obj.set_cluster_state(cluster_state)
-            # If more time has passed than the print frequency, print the cluster state
-            if time.time() - self.last_print_time > self.PRINT_FREQUENCY:
-                logger.info(f'Cluster state: {str(cluster_state)}')
-                self.last_print_time = time.time()
+            try:
+                cluster_state = self.get_cluster_state()
+                self.chakra_obj.set_cluster_state(cluster_state)
+                # If more time has passed than the print frequency, print the cluster state
+                if time.time() - self.last_print_time > self.PRINT_FREQUENCY:
+                    logger.info(f'Cluster state: {str(cluster_state)}')
+                    self.last_print_time = time.time()
+            except Exception as e:
+                logger.exception(f'Exception in ClusterStateUpdater: {e}.\n Retrying in {constants.CLUSTER_STATE_RECOVERY_INTERVAL} seconds.')
+                time.sleep(constants.CLUSTER_STATE_RECOVERY_INTERVAL)
 
     @staticmethod
     def parse_resource_cpu(resource_str):
@@ -225,23 +229,34 @@ class ChakraScheduler:
         w = watch.Watch()
         logger.info('Watch initialized')
         waiting_objects = deque()   # This queue maintains list of jobs that were not scheduled due to unavailable machines. This list maintains priority order and tries to schedule waiting jobs every time kubernetes state updates.
-        for new_event in w.stream(self.kubecoreapi.list_namespaced_pod, self.namespace):
-            logger.info('Recieved object %s and event type %s, adding to wait queue.' % (new_event['object'].metadata.name, new_event['type']))
-            if new_event['type'] == 'DELETED':
-                # If the pod was deleted, force a state update to handle pending pods
-                logger.info('Pod %s was deleted, forcing state update.' % new_event['object'].metadata.name)
-                self.set_cluster_state(self.cluster_state_updater.get_cluster_state())
-            waiting_objects.append(new_event)
-            num_waiting = len(waiting_objects)
-            logger.info('Current k8s scheduler wait queue length = %d' % num_waiting)
-            for i in range(0, num_waiting):
-                event = waiting_objects.popleft()
-                if event['object'].status.phase == 'Pending' and event['object'].spec.node_name == None and event['object'].spec.scheduler_name == self.scheduler_name:
-                    ret = self.process_event(event)
-                    if ret:
-                        # Event was returned, so it was not scheduled. Add it back to the queue.
-                        waiting_objects.append(ret)
-                else:
-                    # limit output size to 100 chars
-                    logger.info(f'Ignoring event {event["type"]} for pod {event["object"].metadata.name}')
-                    pass
+        # Start watching for new events
+        while True:
+            # This while loop is to handle the case when the watch stream is closed due to some error.
+            try:
+                stream = w.stream(self.kubecoreapi.list_namespaced_pod, self.namespace)
+                for new_event in stream:
+                    logger.info('Recieved object %s and event type %s, adding to wait queue.' % (new_event['object'].metadata.name, new_event['type']))
+                    if new_event['type'] == 'DELETED':
+                        # If the pod was deleted, force a state update to handle pending pods
+                        logger.info('Pod %s was deleted, forcing state update.' % new_event['object'].metadata.name)
+                        self.set_cluster_state(self.cluster_state_updater.get_cluster_state())
+                    waiting_objects.append(new_event)
+                    num_waiting = len(waiting_objects)
+                    logger.info('Current k8s scheduler wait queue length = %d' % num_waiting)
+                    for i in range(0, num_waiting):
+                        event = waiting_objects.popleft()
+                        if event['object'].status.phase == 'Pending' and event['object'].spec.node_name == None and event['object'].spec.scheduler_name == self.scheduler_name:
+                            ret = self.process_event(event)
+                            if ret:
+                                # Event was returned, so it was not scheduled. Add it back to the queue.
+                                waiting_objects.append(ret)
+                        else:
+                            # limit output size to 100 chars
+                            logger.info(f'Ignoring event {event["type"]} for pod {event["object"].metadata.name}')
+                            pass
+            except Exception as e:
+                logger.exception(f'Exception in watch stream, restarting watch stream. {str(e)}\n Sleeping for {constants.CLUSTER_STATE_RECOVERY_INTERVAL} seconds.')
+                time.sleep(constants.CLUSTER_STATE_RECOVERY_INTERVAL)
+                w = watch.Watch()
+                logger.info('Watch reinitialized')
+                continue
