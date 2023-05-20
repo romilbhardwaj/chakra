@@ -1,4 +1,5 @@
 # Implements various Chakra policies for allocating jobs to nodes
+import copy
 import logging
 from typing import Dict, Union
 
@@ -25,7 +26,7 @@ class BasePolicy:
         Hint: Can access labels using event_obj.metadata.labels
         :param cluster_state: Dictionary containing the current state of the cluster. Structure is {node_name: {cpu: float, mem: float, nvidia.com/gpu: float}}
         :param pod: V1Pod object to be scheduled
-        :return: Node name to allocate the pod to.
+        :return: Node name to allocate the pod to and the cluster_state if the node allocation succeeds (speculated).
         """
         raise NotImplementedError
 
@@ -40,7 +41,10 @@ class RandomPolicy(BasePolicy):
                        cluster_state: Dict[str, Dict[str, Union[float, int]]],
                        pod: V1Pod) -> str:
         node_names = list(cluster_state.keys())
-        return random.choice(node_names)
+        # Ideally, we should check if the node has enough resources before allocating
+        # But for now, we just randomly allocate.  We also do not update the cluster_state
+        # because we are not checking if the node has enough resources.
+        return random.choice(node_names), cluster_state
 
 class BestfitBinpackPolicy(BasePolicy):
     """Allocates jobs to nodes based on best fit bin packing. Checks if the node has enough resources before allocating."""
@@ -63,9 +67,8 @@ class BestfitBinpackPolicy(BasePolicy):
         Returns the name of the node to allocate the job to.
         :param cluster_state: Dictionary containing the current state of the cluster. Structure is {node_name: {cpu: float, mem: float, nvidia.com/gpu: float}}
         :param pod: Kubernetes V1Pod object to be scheduled
-        :return:
+        :return: Node name to allocate the pod to and the cluster_state if the node allocation succeeds (speculated)
         """
-
         # Initially, use the binpacking_resource defined for the class
         binpacking_resource = self.binpacking_resource
         # Get the pod resource requirement
@@ -99,6 +102,11 @@ class BestfitBinpackPolicy(BasePolicy):
         if best_fit_node is None:
             raise Exception('No node has enough resources to fit the pod')
 
-        return best_fit_node
+        predicted_cluster_state = copy.deepcopy(cluster_state)
+        # Update the cluster state for all resources
+        for resource in pod.spec.containers[0].resources.requests.keys():
+            predicted_cluster_state[best_fit_node][resource] -= float(pod.spec.containers[0].resources.requests.get(resource))
+
+        return best_fit_node, predicted_cluster_state
 
 

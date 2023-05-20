@@ -3,6 +3,10 @@ Chakra is a highly customizable Kubernetes scheduler that makes Kubernetes sched
 
 The goal of Chakra is ease of use and flexibility. It is not designed for performance, and is not suitable for production use.
 
+Currently supported policies:
+* Random
+* Best Fit Binpacking
+
 ## Usage
 Chakra runs as a deployment inside your Kubernetes cluster. It watches all pod that have pod.spec.schedulerName set to `chakra`, and schedules them according to the chosen policy.
 

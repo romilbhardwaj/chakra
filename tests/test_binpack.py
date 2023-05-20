@@ -31,7 +31,8 @@ def test_best_fit_allocation():
 
     # The best fit for a 2.0 CPU request is node2, because it leaves the least amount of CPU remaining
     pod = create_pod(2.0)
-    assert policy.get_allocation(cluster_state, pod) == 'node2'
+    node, _ = policy.get_allocation(cluster_state, pod)
+    assert node  == 'node2'
 
 def test_no_suitable_node():
     policy = BestfitBinpackPolicy('cpu')
@@ -59,7 +60,8 @@ def test_fallback_to_cpu_allocation():
     # The pod does not request 'nvidia.com/gpu', so the policy should fallback to 'cpu'
     # The best fit for a 2.0 CPU request is node2, because it leaves the least amount of CPU remaining
     pod = create_pod(2.0)
-    assert policy.get_allocation(cluster_state, pod) == 'node2'
+    node, _ = policy.get_allocation(cluster_state, pod)
+    assert node == 'node2'
 
 
 def test_no_cpu_request():

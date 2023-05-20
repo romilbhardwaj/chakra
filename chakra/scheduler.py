@@ -153,7 +153,7 @@ class ChakraScheduler:
         # Called by the ClusterStateUpdater thread.
         self.cluster_state = cluster_state
 
-    def scheduler(self, name, node):
+    def schedule(self, name, node):
         logger.info('Scheduling object %s on node %s.' % (str(name), str(node)))
 
         target = client.V1ObjectReference()
@@ -174,6 +174,19 @@ class ChakraScheduler:
                 raise
             else:
                 logger.info('Recieved response from API, but no target value... ignoring exception.')
+
+        # Block till the pod is scheduled
+        last_print_time = 0
+        block_start_time = time.time()
+        while True:
+            pod = self.kubecoreapi.read_namespaced_pod(name=name, namespace=self.namespace)
+            if pod.status.phase != 'Pending':
+                break
+            time.sleep(0.05)
+            now = time.time()
+            if now - last_print_time > 1:
+                logger.info(f'Waiting for pod {name} to be scheduled since {now - block_start_time:.2f} seconds.')
+                last_print_time = time.time()
         return result
 
     def process_event(self, event: Dict):
@@ -186,21 +199,24 @@ class ChakraScheduler:
         try:
             logger.info('Trying to schedule pod %s' % pod.metadata.name)
             try:
-                allotted_node_name = self.policy.get_allocation(self.cluster_state, pod)
+                allotted_node_name, speculated_cluster_state = self.policy.get_allocation(self.cluster_state, pod)
                 logger.info(
                     'Got allocation node - %s' % str(allotted_node_name))
+                logger.info('Speculated cluster state - %s' % str(speculated_cluster_state))
+                # We speculatively update the cluster state here. This will be overwritten by the ClusterStateUpdater thread when the real cluster state comes in.
+                # This is to prevent the scheduler from scheduling multiple pods to the same node when it is not aware of the real cluster state.
+                self.set_cluster_state(speculated_cluster_state)
             except Exception as e:
                 logger.exception(
                     'Unable to allocate %s: %s, adding it back to the wait queue.' % (pod.metadata.name, str(e)))
                 return event
-            res = self.scheduler(pod.metadata.name,
-                                 allotted_node_name)
+            res = self.schedule(pod.metadata.name,
+                                allotted_node_name)
         except client.rest.ApiException as e:
             logger.warning('API Exception - %s' % str(json.loads(e.body)['message']))
 
 
     def run(self):
-
         # Wait for cluster state to be populated once before starting the scheduler.
         while self.cluster_state is None:
             logger.info('Waiting for cluster state to be populated.')
@@ -211,6 +227,10 @@ class ChakraScheduler:
         waiting_objects = deque()   # This queue maintains list of jobs that were not scheduled due to unavailable machines. This list maintains priority order and tries to schedule waiting jobs every time kubernetes state updates.
         for new_event in w.stream(self.kubecoreapi.list_namespaced_pod, self.namespace):
             logger.info('Recieved object %s and event type %s, adding to wait queue.' % (new_event['object'].metadata.name, new_event['type']))
+            if new_event['type'] == 'DELETED':
+                # If the pod was deleted, force a state update to handle pending pods
+                logger.info('Pod %s was deleted, forcing state update.' % new_event['object'].metadata.name)
+                self.set_cluster_state(self.cluster_state_updater.get_cluster_state())
             waiting_objects.append(new_event)
             num_waiting = len(waiting_objects)
             logger.info('Current k8s scheduler wait queue length = %d' % num_waiting)
