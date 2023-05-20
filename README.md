@@ -65,4 +65,4 @@ python3 -m chakra.main --policy binpack --policy-args '{"binpacking_resource": "
 Take a look at chakra/policies.py. You'll need to inherit from `BaseClass` and implement the `get_allocation` method.
 
 ## Known issues
-* When the cluster is full and a resource frees up, chakra does not reschedule pending pods onto the freed up resources. This is because the watch doesn't get triggered. This is to be fixed by making the loop not wait on watch and instead also look at pending pods. 
+* Please report!
