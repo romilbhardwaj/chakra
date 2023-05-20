@@ -19,7 +19,7 @@ kubectl apply -f chakra_admin.yaml
 kubectl apply -f chakra.yaml
 ```
 
-2. Submit pods with `pod.spec.schedulerName` set to `chakra`
+2. Submit pods with `pod.spec.schedulerName` set to `chakra` and make sure resource limits and requests are the same. For example:
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -30,6 +30,13 @@ spec:
     spec:
       schedulerName: chakra # <--- This is critical! This is how the pod is assigned to Chakra for scheduling.
       containers:
+        resources:
+          requests:
+            cpu: 1
+            nvidia.com/gpu: 1
+          limits: # Must be same as requests
+            cpu: 1
+            nvidia.com/gpu: 1
         ...
 ```
 

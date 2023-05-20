@@ -23,9 +23,9 @@ spec:
         ports:
         - containerPort: 80
         resources:
-          limits:
+          requests:
             cpu: 1
             nvidia.com/gpu: 1
-          requests:
+          limits: # Must be same as requests
             cpu: 1
             nvidia.com/gpu: 1
