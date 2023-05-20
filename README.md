@@ -1,4 +1,4 @@
-# Chakra
+# Chakra 🥏
 Chakra is a highly customizable Kubernetes scheduler that makes Kubernetes schedule jobs as _you_ want them to be scheduled.
 
 The goal of Chakra is ease of use and flexibility. It is not designed for performance, and is not suitable for production use.
