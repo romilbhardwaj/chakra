@@ -9,6 +9,7 @@ Chakra runs as a deployment inside your Kubernetes cluster. It watches all pod t
 To use Chakra:
 1. Launch the Chakra deployment
 ```console
+# You can configure the policy being deployed by editing chakra.yaml
 kubectl apply -f chakra.yaml
 ```
 

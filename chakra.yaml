@@ -19,6 +19,7 @@ spec:
       - name: chakra
         image: us-docker.pkg.dev/romil-sky-exp/chakra/chakra:latest
         imagePullPolicy: Always
+        # policy can be binpack or random. binpacking_resource can be cpu, memory or nvidia.com/gpu.
         command:
           - /bin/bash
           - -c
